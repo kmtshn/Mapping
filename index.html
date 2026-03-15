@@ -141,13 +141,31 @@
                 </div>
                 
                 <!-- 映像の拡大縮小スライダー -->
-                <div class="w-full mt-2 pt-2 border-t border-gray-600 px-2">
-                    <div class="flex justify-between text-xs text-gray-400 mb-2">
-                        <span>縮小</span>
-                        <span class="text-gray-200">映像サイズ</span>
-                        <span>拡大</span>
+                <div class="w-full mt-2 pt-2 border-t border-gray-600 px-2 space-y-3">
+                    <div>
+                        <div class="flex justify-between text-xs text-gray-400 mb-2">
+                            <span>縮小</span>
+                            <span class="text-gray-200">映像サイズ</span>
+                            <span>拡大</span>
+                        </div>
+                        <input type="range" id="video-scale" min="0.2" max="5" step="0.05" value="1" class="w-full accent-blue-500 cursor-pointer">
                     </div>
-                    <input type="range" id="video-scale" min="0.2" max="5" step="0.05" value="1" class="w-full accent-blue-500 cursor-pointer">
+                    
+                    <!-- 追加: 映像の上下左右位置スライダー -->
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>左</span><span class="text-gray-200">左右位置</span><span>右</span>
+                            </div>
+                            <input type="range" id="video-offset-x" min="-1" max="1" step="0.01" value="0" class="w-full accent-green-500 cursor-pointer">
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                <span>下</span><span class="text-gray-200">上下位置</span><span>上</span>
+                            </div>
+                            <input type="range" id="video-offset-y" min="-1" max="1" step="0.01" value="0" class="w-full accent-green-500 cursor-pointer">
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -234,6 +252,8 @@
 
         let mappingMode = 'mask'; // 'mask' または 'distort'
         let videoScale = 1.0; // スケール倍率
+        let videoOffsetX = 0.0; // 左右オフセット
+        let videoOffsetY = 0.0; // 上下オフセット
 
         // マッピング方式のラジオボタンイベント
         document.querySelectorAll('input[name="mapping-mode"]').forEach(radio => {
@@ -247,6 +267,20 @@
         const scaleSlider = document.getElementById('video-scale');
         scaleSlider.addEventListener('input', (e) => {
             videoScale = parseFloat(e.target.value);
+            updateGeometry();
+        });
+
+        // 左右位置スライダーのイベント
+        const offsetXSlider = document.getElementById('video-offset-x');
+        offsetXSlider.addEventListener('input', (e) => {
+            videoOffsetX = parseFloat(e.target.value);
+            updateGeometry();
+        });
+
+        // 上下位置スライダーのイベント
+        const offsetYSlider = document.getElementById('video-offset-y');
+        offsetYSlider.addEventListener('input', (e) => {
+            videoOffsetY = parseFloat(e.target.value);
             updateGeometry();
         });
 
@@ -291,17 +325,17 @@
                     
                     // --- UV（テクスチャの貼り付け方）の計算 ---
                     if (mappingMode === 'distort') {
-                        // 枠に合わせて映像全体を歪める（スケール反映）
-                        const finalU = (u - 0.5) / videoScale + 0.5;
-                        const finalV = ((1 - v) - 0.5) / videoScale + 0.5;
+                        // 枠に合わせて映像全体を歪める（スケールとオフセット反映）
+                        const finalU = (u - 0.5 - videoOffsetX) / videoScale + 0.5;
+                        const finalV = ((1 - v) - 0.5 - videoOffsetY) / videoScale + 0.5;
                         uv.setXY(index, finalU, finalV);
                     } else {
-                        // 映像は歪ませず、画面全体にある動画の「対応する位置」を切り抜く（スケール反映）
+                        // 映像は歪ませず、画面全体にある動画の「対応する位置」を切り抜く（スケールとオフセット反映）
                         const screenU = finalX / window.innerWidth;
                         const screenV = 1.0 - (finalY / window.innerHeight); // Y軸反転
                         
-                        const finalU = (screenU - 0.5) / (scaleX * videoScale) + 0.5;
-                        const finalV = (screenV - 0.5) / (scaleY * videoScale) + 0.5;
+                        const finalU = (screenU - 0.5 - videoOffsetX) / (scaleX * videoScale) + 0.5;
+                        const finalV = (screenV - 0.5 - videoOffsetY) / (scaleY * videoScale) + 0.5;
                         
                         uv.setXY(index, finalU, finalV);
                     }
@@ -363,8 +397,9 @@
             });
             el.addEventListener('pointermove', (e) => {
                 if (activeIndex === index) {
-                    corners[index].x = e.clientX;
-                    corners[index].y = e.clientY;
+                    // 画面外（ウィンドウの境界外）に出ないように座標を制限（クランプ）する
+                    corners[index].x = Math.max(0, Math.min(window.innerWidth, e.clientX));
+                    corners[index].y = Math.max(0, Math.min(window.innerHeight, e.clientY));
                     updateHTMLHandles();
                 }
             });
