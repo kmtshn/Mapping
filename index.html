@@ -78,9 +78,10 @@
     <!-- Three.js描画領域 -->
     <canvas id="webgl-canvas"></canvas>
 
-    <!-- ワイヤーフレーム (枠線) -->
+    <!-- ワイヤーフレーム (枠線とグリッド) -->
     <svg id="guide-frame">
-        <polygon id="poly-frame" points="" fill="rgba(0,255,200,0.1)" stroke="#00ffcc" stroke-width="2" stroke-dasharray="6 6" />
+        <polygon id="poly-frame" points="" fill="rgba(0,255,200,0.1)" stroke="#00ffcc" stroke-width="2" />
+        <path id="grid-lines" d="" fill="none" stroke="#00ffcc" stroke-width="1" stroke-dasharray="4 4" opacity="0.5" />
     </svg>
 
     <!-- 4つの操作ハンドル (左上, 右上, 右下, 左下) -->
@@ -239,6 +240,30 @@
         function updateSVG() {
             const pointsStr = corners.map(c => `${c.x},${c.y}`).join(' ');
             document.getElementById('poly-frame').setAttribute('points', pointsStr);
+            
+            // グリッド線の計算 (5x5分割)
+            const gridSegments = 5;
+            let pathData = '';
+            
+            for (let i = 1; i < gridSegments; i++) {
+                const t = i / gridSegments;
+                
+                // 縦のライン（上辺から下辺へ）
+                const topX = lerp(corners[0].x, corners[1].x, t);
+                const topY = lerp(corners[0].y, corners[1].y, t);
+                const botX = lerp(corners[3].x, corners[2].x, t);
+                const botY = lerp(corners[3].y, corners[2].y, t);
+                pathData += `M ${topX},${topY} L ${botX},${botY} `;
+                
+                // 横のライン（左辺から右辺へ）
+                const leftX = lerp(corners[0].x, corners[3].x, t);
+                const leftY = lerp(corners[0].y, corners[3].y, t);
+                const rightX = lerp(corners[1].x, corners[2].x, t);
+                const rightY = lerp(corners[1].y, corners[2].y, t);
+                pathData += `M ${leftX},${leftY} L ${rightX},${rightY} `;
+            }
+            
+            document.getElementById('grid-lines').setAttribute('d', pathData);
         }
 
         // ==========================================
@@ -320,5 +345,3 @@
     </script>
 </body>
 </html>
-
-
