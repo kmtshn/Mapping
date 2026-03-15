@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Video Projection Mapping</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            touch-action: none;
+            font-family: sans-serif;
+        }
+        #webgl-canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+        /* ドラッグできる4つの頂点 */
+        .corner-handle {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            backdrop-filter: blur(2px);
+            transition: border-color 0.2s;
+        }
+        .corner-handle::after {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background-color: #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(255,255,255,0.8);
+        }
+        .corner-handle:active {
+            cursor: grabbing;
+            border-color: #00ffcc;
+        }
+        .corner-handle:active::after {
+            background-color: #00ffcc;
+        }
+        /* UIを隠すクラス（投影モード時） */
+        .hide-ui .corner-handle, 
+        .hide-ui #controls,
+        .hide-ui #guide-frame {
+            display: none !important;
+        }
+        
+        /* 映像枠のガイドライン */
+        #guide-frame {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 映像ソース用 (画面には表示しない) -->
+    <!-- iOS等での自動再生のために playsinline muted を付与 -->
+    <video id="video-source" loop muted playsinline crossorigin="anonymous" style="display:none;"></video>
+
+    <!-- Three.js描画領域 -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <!-- ワイヤーフレーム (枠線) -->
+    <svg id="guide-frame">
+        <polygon id="poly-frame" points="" fill="rgba(0,255,200,0.1)" stroke="#00ffcc" stroke-width="2" stroke-dasharray="6 6" />
+    </svg>
+
+    <!-- 4つの操作ハンドル (左上, 右上, 右下, 左下) -->
+    <div id="handle-0" class="corner-handle"></div>
+    <div id="handle-1" class="corner-handle"></div>
+    <div id="handle-2" class="corner-handle"></div>
+    <div id="handle-3" class="corner-handle"></div>
+
+    <!-- コントロールUI -->
+    <div id="controls" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-20 w-full px-4 max-w-2xl">
+        
+        <div class="bg-black/70 backdrop-blur p-4 rounded-xl border border-gray-600 w-full shadow-2xl">
+            <div class="mb-4 text-white text-center text-sm">
+                4つの丸をクローゼットの枠に合わせて、動画を選択してください
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <!-- 動画アップロードボタン -->
+                <label class="relative cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto text-center flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                    </svg>
+                    動画ファイルを選択
+                    <input type="file" id="video-upload" accept="video/mp4,video/x-m4v,video/*" class="absolute hidden">
+                </label>
+
+                <!-- フルスクリーンボタン -->
+                <button id="btn-fullscreen" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 8V4m0 0h4m-4 0l4 4m8 0V4m0 0h-4m4 0l-4 4m-8 4v4m0 0h4m-4 0l4-4m8 4l-4-4m4 4v-4m0 4h-4" />
+                    </svg>
+                    全画面
+                </button>
+
+                <!-- UI非表示ボタン -->
+                <button id="btn-hide-ui" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                    </svg>
+                    投影開始
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 投影モード時に画面全体を覆う透明ボタン（タップでUI復活） -->
+    <div id="overlay-show-ui" class="hidden absolute inset-0 z-10 cursor-pointer"></div>
+
+    <script>
+        // ==========================================
+        // 1. 動画とテクスチャのセットアップ
+        // ==========================================
+        const videoElement = document.getElementById('video-source');
+        
+        // 動画用のテクスチャを作成
+        const videoTexture = new THREE.VideoTexture(videoElement);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBFormat;
+
+        // ==========================================
+        // 2. Three.js セットアップ
+        // ==========================================
+        const canvas = document.getElementById('webgl-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.setClearColor(0x000000, 1); // 背景は黒（プロジェクターでは光が出ない部分）
+
+        const scene = new THREE.Scene();
+        let camera = new THREE.OrthographicCamera(
+            -window.innerWidth / 2, window.innerWidth / 2,
+            window.innerHeight / 2, -window.innerHeight / 2,
+            -1, 1
+        );
+
+        // 分割数が多いほど、歪ませた際の動画の歪みが自然になります
+        const segments = 32;
+        const geometry = new THREE.PlaneGeometry(1, 1, segments, segments);
+        
+        // 動画テクスチャを貼るマテリアル
+        // 初期状態はわかりやすいように水色にしておく
+        const material = new THREE.MeshBasicMaterial({ 
+            map: videoTexture, 
+            color: 0x00aaff, 
+            side: THREE.DoubleSide 
+        });
+        
+        const planeMesh = new THREE.Mesh(geometry, material);
+        scene.add(planeMesh);
+
+        // ==========================================
+        // 3. 動画ファイルの読み込み処理
+        // ==========================================
+        const videoUpload = document.getElementById('video-upload');
+        videoUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                // ファイルからURLを生成してvideoタグにセット
+                const fileURL = URL.createObjectURL(file);
+                videoElement.src = fileURL;
+                
+                // 動画が読み込まれたら再生を開始し、色を白（元の動画の色）に戻す
+                videoElement.onloadeddata = () => {
+                    videoElement.play();
+                    material.color.setHex(0xffffff); // 元の映像の色で表示
+                };
+            }
+        });
+
+        // ==========================================
+        // 4. コーナーピンニング（4頂点の歪み）処理
+        // ==========================================
+        // 初期配置 (画面中央に長方形)
+        const padX = window.innerWidth * 0.2;
+        const padY = window.innerHeight * 0.2;
+        const corners = [
+            { x: padX, y: padY },                                     // 0: 左上
+            { x: window.innerWidth - padX, y: padY },                 // 1: 右上
+            { x: window.innerWidth - padX, y: window.innerHeight - padY }, // 2: 右下
+            { x: padX, y: window.innerHeight - padY }                 // 3: 左下
+        ];
+
+        const lerp = (a, b, t) => a + (b - a) * t;
+
+        function updateGeometry() {
+            const pos = geometry.attributes.position;
+            const hw = window.innerWidth / 2;
+            const hh = window.innerHeight / 2;
+
+            for (let i = 0; i <= segments; i++) {
+                const v = i / segments; // 縦の割合
+                for (let j = 0; j <= segments; j++) {
+                    const u = j / segments; // 横の割合
+
+                    // 上辺と下辺の補間
+                    const topX = lerp(corners[0].x, corners[1].x, u);
+                    const topY = lerp(corners[0].y, corners[1].y, u);
+                    const botX = lerp(corners[3].x, corners[2].x, u);
+                    const botY = lerp(corners[3].y, corners[2].y, u);
+
+                    // 縦方向の補間 (バイリニア)
+                    const finalX = lerp(topX, botX, v);
+                    const finalY = lerp(topY, botY, v);
+
+                    // Three.js座標系へ
+                    pos.setXYZ( i * (segments + 1) + j, finalX - hw, -(finalY - hh), 0 );
+                }
+            }
+            pos.needsUpdate = true;
+            updateSVG();
+        }
+
+        // SVGのガイドラインを更新
+        function updateSVG() {
+            const pointsStr = corners.map(c => `${c.x},${c.y}`).join(' ');
+            document.getElementById('poly-frame').setAttribute('points', pointsStr);
+        }
+
+        // ==========================================
+        // 5. UI（ドラッグ操作）のセットアップ
+        // ==========================================
+        const handleEls = corners.map((_, i) => document.getElementById(`handle-${i}`));
+        let activeIndex = -1;
+
+        function updateHTMLHandles() {
+            corners.forEach((corner, i) => {
+                handleEls[i].style.left = `${corner.x}px`;
+                handleEls[i].style.top = `${corner.y}px`;
+            });
+            updateGeometry();
+        }
+
+        handleEls.forEach((el, index) => {
+            el.addEventListener('pointerdown', (e) => {
+                activeIndex = index;
+                el.setPointerCapture(e.pointerId);
+            });
+            el.addEventListener('pointermove', (e) => {
+                if (activeIndex === index) {
+                    corners[index].x = e.clientX;
+                    corners[index].y = e.clientY;
+                    updateHTMLHandles();
+                }
+            });
+            el.addEventListener('pointerup', (e) => {
+                activeIndex = -1;
+                el.releasePointerCapture(e.pointerId);
+            });
+        });
+
+        // ==========================================
+        // 6. アニメーションとリサイズ
+        // ==========================================
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+
+        updateHTMLHandles();
+        animate();
+
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.left = -window.innerWidth / 2; camera.right = window.innerWidth / 2;
+            camera.top = window.innerHeight / 2; camera.bottom = -window.innerHeight / 2;
+            camera.updateProjectionMatrix();
+        });
+
+        // ==========================================
+        // 7. ボタン制御
+        // ==========================================
+        document.getElementById('btn-fullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        });
+
+        const btnHideUI = document.getElementById('btn-hide-ui');
+        const overlayShowUI = document.getElementById('overlay-show-ui');
+        
+        btnHideUI.addEventListener('click', () => {
+            document.body.classList.add('hide-ui');
+            overlayShowUI.classList.remove('hidden');
+            
+            // 投影開始時に動画が止まっていたら再生する（スマホ対策）
+            if (videoElement.paused && videoElement.src) {
+                videoElement.play();
+            }
+        });
+
+        overlayShowUI.addEventListener('click', () => {
+            document.body.classList.remove('hide-ui');
+            overlayShowUI.classList.add('hidden');
+        });
+
+    </script>
+</body>
+</html>
+
+
