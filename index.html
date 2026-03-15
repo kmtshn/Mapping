@@ -139,6 +139,16 @@
                         枠に合わせて歪ませる
                     </label>
                 </div>
+                
+                <!-- 映像の拡大縮小スライダー -->
+                <div class="w-full mt-2 pt-2 border-t border-gray-600 px-2">
+                    <div class="flex justify-between text-xs text-gray-400 mb-2">
+                        <span>縮小</span>
+                        <span class="text-gray-200">映像サイズ</span>
+                        <span>拡大</span>
+                    </div>
+                    <input type="range" id="video-scale" min="0.2" max="5" step="0.05" value="1" class="w-full accent-blue-500 cursor-pointer">
+                </div>
             </div>
         </div>
     </div>
@@ -223,6 +233,7 @@
         ];
 
         let mappingMode = 'mask'; // 'mask' または 'distort'
+        let videoScale = 1.0; // スケール倍率
 
         // マッピング方式のラジオボタンイベント
         document.querySelectorAll('input[name="mapping-mode"]').forEach(radio => {
@@ -230,6 +241,13 @@
                 mappingMode = e.target.value;
                 updateGeometry();
             });
+        });
+
+        // 拡大縮小スライダーのイベント
+        const scaleSlider = document.getElementById('video-scale');
+        scaleSlider.addEventListener('input', (e) => {
+            videoScale = parseFloat(e.target.value);
+            updateGeometry();
         });
 
         const lerp = (a, b, t) => a + (b - a) * t;
@@ -273,15 +291,17 @@
                     
                     // --- UV（テクスチャの貼り付け方）の計算 ---
                     if (mappingMode === 'distort') {
-                        // 枠に合わせて映像全体を歪める
-                        uv.setXY(index, u, 1 - v);
+                        // 枠に合わせて映像全体を歪める（スケール反映）
+                        const finalU = (u - 0.5) / videoScale + 0.5;
+                        const finalV = ((1 - v) - 0.5) / videoScale + 0.5;
+                        uv.setXY(index, finalU, finalV);
                     } else {
-                        // 映像は歪ませず、画面全体にある動画の「対応する位置」を切り抜く
+                        // 映像は歪ませず、画面全体にある動画の「対応する位置」を切り抜く（スケール反映）
                         const screenU = finalX / window.innerWidth;
                         const screenV = 1.0 - (finalY / window.innerHeight); // Y軸反転
                         
-                        const finalU = (screenU - 0.5) / scaleX + 0.5;
-                        const finalV = (screenV - 0.5) / scaleY + 0.5;
+                        const finalU = (screenU - 0.5) / (scaleX * videoScale) + 0.5;
+                        const finalV = (screenV - 0.5) / (scaleY * videoScale) + 0.5;
                         
                         uv.setXY(index, finalU, finalV);
                     }
