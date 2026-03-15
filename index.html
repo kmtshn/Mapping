@@ -91,79 +91,88 @@
     <div id="handle-3" class="corner-handle"></div>
 
     <!-- コントロールUI -->
-    <div id="controls" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-4 z-20 w-full px-4 max-w-2xl">
+    <div id="controls" class="absolute z-20 w-[calc(100%-2rem)] max-w-2xl" style="visibility: hidden;">
         
-        <div class="bg-black/70 backdrop-blur p-4 rounded-xl border border-gray-600 w-full shadow-2xl">
-            <div class="mb-4 text-white text-center text-sm">
-                4つの丸をクローゼットの枠に合わせて、動画を選択してください
+        <div class="bg-black/80 backdrop-blur rounded-xl border border-gray-600 w-full shadow-2xl overflow-hidden">
+            <!-- ドラッグ移動用のヘッダー -->
+            <div id="controls-header" class="bg-gray-800 hover:bg-gray-700 py-2 cursor-grab flex justify-center items-center text-gray-400 text-xs font-bold select-none touch-none transition-colors border-b border-gray-700">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16" />
+                </svg>
+                ドラッグして移動
             </div>
             
-            <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
-                <!-- 動画アップロードボタン -->
-                <label class="relative cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto text-center flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-                    </svg>
-                    動画ファイルを選択
-                    <input type="file" id="video-upload" accept="video/mp4,video/x-m4v,video/*" class="absolute hidden">
-                </label>
+            <div class="p-4">
+                <div class="mb-4 text-white text-center text-sm">
+                    4つの丸をクローゼットの枠に合わせて、動画を選択してください
+                </div>
 
-                <!-- フルスクリーンボタン -->
-                <button id="btn-fullscreen" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 8V4m0 0h4m-4 0l4 4m8 0V4m0 0h-4m4 0l-4 4m-8 4v4m0 0h4m-4 0l4-4m8 4l-4-4m4 4v-4m0 4h-4" />
-                    </svg>
-                    全画面
-                </button>
+                <div class="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                    <!-- 動画アップロードボタン -->
+                    <label class="relative cursor-pointer bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto text-center flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+                        </svg>
+                        動画ファイルを選択
+                        <input type="file" id="video-upload" accept="video/mp4,video/x-m4v,video/*" class="absolute hidden">
+                    </label>
 
-                <!-- UI非表示ボタン -->
-                <button id="btn-hide-ui" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto flex items-center justify-center gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                        <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
-                    </svg>
-                    投影開始
-                </button>
-            </div>
-            
-            <!-- マッピング方式の切り替え -->
-            <div class="mt-5 flex flex-col items-center gap-3 bg-gray-800/60 p-3 rounded-lg border border-gray-600 w-full sm:w-auto mx-auto">
-                <span class="text-gray-300 text-xs font-bold tracking-wider">マッピング方式</span>
-                <div class="flex flex-col sm:flex-row gap-4 sm:gap-6">
-                    <label class="flex items-center gap-2 cursor-pointer text-sm text-white hover:text-blue-300 transition">
-                        <input type="radio" name="mapping-mode" value="mask" checked class="w-4 h-4 accent-blue-500">
-                        切り抜く (映像は歪まない)
-                    </label>
-                    <label class="flex items-center gap-2 cursor-pointer text-sm text-white hover:text-blue-300 transition">
-                        <input type="radio" name="mapping-mode" value="distort" class="w-4 h-4 accent-blue-500">
-                        枠に合わせて歪ませる
-                    </label>
+                    <!-- フルスクリーンボタン -->
+                    <button id="btn-fullscreen" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M3 8V4m0 0h4m-4 0l4 4m8 0V4m0 0h-4m4 0l-4 4m-8 4v4m0 0h4m-4 0l4-4m8 4l-4-4m4 4v-4m0 4h-4" />
+                        </svg>
+                        全画面
+                    </button>
+
+                    <!-- UI非表示ボタン -->
+                    <button id="btn-hide-ui" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition w-full sm:w-auto flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                            <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+                        </svg>
+                        投影開始
+                    </button>
                 </div>
                 
-                <!-- 映像の拡大縮小スライダー -->
-                <div class="w-full mt-2 pt-2 border-t border-gray-600 px-2 space-y-3">
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-400 mb-2">
-                            <span>縮小</span>
-                            <span class="text-gray-200">映像サイズ</span>
-                            <span>拡大</span>
-                        </div>
-                        <input type="range" id="video-scale" min="0.2" max="5" step="0.05" value="1" class="w-full accent-blue-500 cursor-pointer">
+                <!-- マッピング方式の切り替え -->
+                <div class="mt-5 flex flex-col items-center gap-3 bg-gray-800/60 p-3 rounded-lg border border-gray-600 w-full sm:w-auto mx-auto">
+                    <span class="text-gray-300 text-xs font-bold tracking-wider">マッピング方式</span>
+                    <div class="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-white hover:text-blue-300 transition">
+                            <input type="radio" name="mapping-mode" value="mask" checked class="w-4 h-4 accent-blue-500">
+                            切り抜く (映像は歪まない)
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-white hover:text-blue-300 transition">
+                            <input type="radio" name="mapping-mode" value="distort" class="w-4 h-4 accent-blue-500">
+                            枠に合わせて歪ませる
+                        </label>
                     </div>
                     
-                    <!-- 追加: 映像の上下左右位置スライダー -->
-                    <div class="flex gap-4">
-                        <div class="flex-1">
-                            <div class="flex justify-between text-xs text-gray-400 mb-1">
-                                <span>左</span><span class="text-gray-200">左右位置</span><span>右</span>
+                    <!-- 映像の拡大縮小・位置スライダー -->
+                    <div class="w-full mt-2 pt-2 border-t border-gray-600 px-2 space-y-3">
+                        <div>
+                            <div class="flex justify-between text-xs text-gray-400 mb-2">
+                                <span>縮小</span>
+                                <span class="text-gray-200">映像サイズ</span>
+                                <span>拡大</span>
                             </div>
-                            <input type="range" id="video-offset-x" min="-1" max="1" step="0.01" value="0" class="w-full accent-green-500 cursor-pointer">
+                            <input type="range" id="video-scale" min="0.2" max="5" step="0.05" value="1" class="w-full accent-blue-500 cursor-pointer">
                         </div>
-                        <div class="flex-1">
-                            <div class="flex justify-between text-xs text-gray-400 mb-1">
-                                <span>下</span><span class="text-gray-200">上下位置</span><span>上</span>
+                        
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                    <span>左</span><span class="text-gray-200">左右位置</span><span>右</span>
+                                </div>
+                                <input type="range" id="video-offset-x" min="-1" max="1" step="0.01" value="0" class="w-full accent-green-500 cursor-pointer">
                             </div>
-                            <input type="range" id="video-offset-y" min="-1" max="1" step="0.01" value="0" class="w-full accent-green-500 cursor-pointer">
+                            <div class="flex-1">
+                                <div class="flex justify-between text-xs text-gray-400 mb-1">
+                                    <span>下</span><span class="text-gray-200">上下位置</span><span>上</span>
+                                </div>
+                                <input type="range" id="video-offset-y" min="-1" max="1" step="0.01" value="0" class="w-full accent-green-500 cursor-pointer">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -221,21 +230,21 @@
         // 3. 動画ファイルの読み込み処理
         // ==========================================
         const videoUpload = document.getElementById('video-upload');
-        videoUpload.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                // ファイルからURLを生成してvideoタグにセット
-                const fileURL = URL.createObjectURL(file);
-                videoElement.src = fileURL;
-                
-                // 動画が読み込まれたら再生を開始し、色を白（元の動画の色）に戻す
-                videoElement.onloadeddata = () => {
-                    videoElement.play();
-                    material.color.setHex(0xffffff); // 元の映像の色で表示
-                    updateGeometry(); // 動画の解像度が確定したらUVを再計算
-                };
-            }
-        });
+        if (videoUpload) {
+            videoUpload.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const fileURL = URL.createObjectURL(file);
+                    videoElement.src = fileURL;
+                    
+                    videoElement.onloadeddata = () => {
+                        videoElement.play();
+                        material.color.setHex(0xffffff); // 元の映像の色で表示
+                        updateGeometry(); // 動画の解像度が確定したらUVを再計算
+                    };
+                }
+            });
+        }
 
         // ==========================================
         // 4. コーナーピンニング（4頂点の歪み）処理
@@ -265,24 +274,30 @@
 
         // 拡大縮小スライダーのイベント
         const scaleSlider = document.getElementById('video-scale');
-        scaleSlider.addEventListener('input', (e) => {
-            videoScale = parseFloat(e.target.value);
-            updateGeometry();
-        });
+        if (scaleSlider) {
+            scaleSlider.addEventListener('input', (e) => {
+                videoScale = parseFloat(e.target.value);
+                updateGeometry();
+            });
+        }
 
         // 左右位置スライダーのイベント
         const offsetXSlider = document.getElementById('video-offset-x');
-        offsetXSlider.addEventListener('input', (e) => {
-            videoOffsetX = parseFloat(e.target.value);
-            updateGeometry();
-        });
+        if (offsetXSlider) {
+            offsetXSlider.addEventListener('input', (e) => {
+                videoOffsetX = parseFloat(e.target.value);
+                updateGeometry();
+            });
+        }
 
         // 上下位置スライダーのイベント
         const offsetYSlider = document.getElementById('video-offset-y');
-        offsetYSlider.addEventListener('input', (e) => {
-            videoOffsetY = parseFloat(e.target.value);
-            updateGeometry();
-        });
+        if (offsetYSlider) {
+            offsetYSlider.addEventListener('input', (e) => {
+                videoOffsetY = parseFloat(e.target.value);
+                updateGeometry();
+            });
+        }
 
         const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -426,33 +441,102 @@
             camera.top = window.innerHeight / 2; camera.bottom = -window.innerHeight / 2;
             camera.updateProjectionMatrix();
             updateGeometry(); // リサイズ時にUVも再計算
+            
+            // リサイズ時にメニューが画面外にある場合は戻す
+            if (controlsPanel) {
+                const cw = controlsPanel.offsetWidth;
+                const ch = controlsPanel.offsetHeight;
+                let currentLeft = controlsPanel.offsetLeft;
+                let currentTop = controlsPanel.offsetTop;
+                controlsPanel.style.left = `${Math.max(0, Math.min(window.innerWidth - cw, currentLeft))}px`;
+                controlsPanel.style.top = `${Math.max(0, Math.min(window.innerHeight - ch, currentTop))}px`;
+            }
         });
 
         // ==========================================
-        // 7. ボタン制御
+        // 7. ボタン制御とメニューのドラッグ移動
         // ==========================================
-        document.getElementById('btn-fullscreen').addEventListener('click', () => {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-        });
+        const controlsPanel = document.getElementById('controls');
+        const controlsHeader = document.getElementById('controls-header');
+
+        // メニューの初期位置を中央下に設定
+        function initControlsPosition() {
+            const cw = controlsPanel.offsetWidth;
+            const ch = controlsPanel.offsetHeight;
+            controlsPanel.style.left = `${(window.innerWidth - cw) / 2}px`;
+            controlsPanel.style.top = `${window.innerHeight - ch - 24}px`;
+            controlsPanel.style.visibility = 'visible'; // 位置確定後に表示
+        }
+        
+        // DOM要素のサイズが確定した後に配置する
+        setTimeout(initControlsPosition, 100);
+
+        let isDraggingPanel = false;
+        let panelDragStartX, panelDragStartY;
+        let panelStartLeft, panelStartTop;
+
+        if (controlsHeader) {
+            controlsHeader.addEventListener('pointerdown', (e) => {
+                isDraggingPanel = true;
+                panelDragStartX = e.clientX;
+                panelDragStartY = e.clientY;
+                panelStartLeft = controlsPanel.offsetLeft;
+                panelStartTop = controlsPanel.offsetTop;
+                controlsHeader.style.cursor = 'grabbing';
+                controlsHeader.setPointerCapture(e.pointerId);
+            });
+
+            controlsHeader.addEventListener('pointermove', (e) => {
+                if (!isDraggingPanel) return;
+                const dx = e.clientX - panelDragStartX;
+                const dy = e.clientY - panelDragStartY;
+                
+                // 画面外にはみ出さないようにクランプ
+                const maxLeft = window.innerWidth - controlsPanel.offsetWidth;
+                const maxTop = window.innerHeight - controlsPanel.offsetHeight;
+                const newLeft = Math.max(0, Math.min(maxLeft, panelStartLeft + dx));
+                const newTop = Math.max(0, Math.min(maxTop, panelStartTop + dy));
+                
+                controlsPanel.style.left = `${newLeft}px`;
+                controlsPanel.style.top = `${newTop}px`;
+            });
+
+            controlsHeader.addEventListener('pointerup', (e) => {
+                isDraggingPanel = false;
+                controlsHeader.style.cursor = 'grab';
+                controlsHeader.releasePointerCapture(e.pointerId);
+            });
+        }
+
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        if (btnFullscreen) {
+            btnFullscreen.addEventListener('click', () => {
+                if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+                else document.exitFullscreen();
+            });
+        }
 
         const btnHideUI = document.getElementById('btn-hide-ui');
         const overlayShowUI = document.getElementById('overlay-show-ui');
         
-        btnHideUI.addEventListener('click', () => {
-            document.body.classList.add('hide-ui');
-            overlayShowUI.classList.remove('hidden');
-            
-            // 投影開始時に動画が止まっていたら再生する（スマホ対策）
-            if (videoElement.paused && videoElement.src) {
-                videoElement.play();
-            }
-        });
+        if (btnHideUI) {
+            btnHideUI.addEventListener('click', () => {
+                document.body.classList.add('hide-ui');
+                overlayShowUI.classList.remove('hidden');
+                
+                // 投影開始時に動画が止まっていたら再生する（スマホ対策）
+                if (videoElement.paused && videoElement.src) {
+                    videoElement.play();
+                }
+            });
+        }
 
-        overlayShowUI.addEventListener('click', () => {
-            document.body.classList.remove('hide-ui');
-            overlayShowUI.classList.add('hidden');
-        });
+        if (overlayShowUI) {
+            overlayShowUI.addEventListener('click', () => {
+                document.body.classList.remove('hide-ui');
+                overlayShowUI.classList.add('hidden');
+            });
+        }
 
     </script>
 </body>
