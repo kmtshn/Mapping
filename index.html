@@ -125,6 +125,21 @@
                     投影開始
                 </button>
             </div>
+            
+            <!-- マッピング方式の切り替え -->
+            <div class="mt-5 flex flex-col items-center gap-3 bg-gray-800/60 p-3 rounded-lg border border-gray-600 w-full sm:w-auto mx-auto">
+                <span class="text-gray-300 text-xs font-bold tracking-wider">マッピング方式</span>
+                <div class="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-white hover:text-blue-300 transition">
+                        <input type="radio" name="mapping-mode" value="mask" checked class="w-4 h-4 accent-blue-500">
+                        切り抜く (映像は歪まない)
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-sm text-white hover:text-blue-300 transition">
+                        <input type="radio" name="mapping-mode" value="distort" class="w-4 h-4 accent-blue-500">
+                        枠に合わせて歪ませる
+                    </label>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -189,6 +204,7 @@
                 videoElement.onloadeddata = () => {
                     videoElement.play();
                     material.color.setHex(0xffffff); // 元の映像の色で表示
+                    updateGeometry(); // 動画の解像度が確定したらUVを再計算
                 };
             }
         });
@@ -206,17 +222,41 @@
             { x: padX, y: window.innerHeight - padY }                 // 3: 左下
         ];
 
+        let mappingMode = 'mask'; // 'mask' または 'distort'
+
+        // マッピング方式のラジオボタンイベント
+        document.querySelectorAll('input[name="mapping-mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                mappingMode = e.target.value;
+                updateGeometry();
+            });
+        });
+
         const lerp = (a, b, t) => a + (b - a) * t;
 
         function updateGeometry() {
             const pos = geometry.attributes.position;
+            const uv = geometry.attributes.uv;
             const hw = window.innerWidth / 2;
             const hh = window.innerHeight / 2;
+            
+            // 画面と動画のアスペクト比を計算（切り抜きモード用）
+            const screenAspect = window.innerWidth / window.innerHeight;
+            const videoAspect = videoElement.videoWidth ? (videoElement.videoWidth / videoElement.videoHeight) : (16 / 9);
+
+            let scaleX = 1;
+            let scaleY = 1;
+            if (screenAspect > videoAspect) {
+                scaleX = videoAspect / screenAspect;
+            } else {
+                scaleY = screenAspect / videoAspect;
+            }
 
             for (let i = 0; i <= segments; i++) {
                 const v = i / segments; // 縦の割合
                 for (let j = 0; j <= segments; j++) {
                     const u = j / segments; // 横の割合
+                    const index = i * (segments + 1) + j;
 
                     // 上辺と下辺の補間
                     const topX = lerp(corners[0].x, corners[1].x, u);
@@ -229,10 +269,26 @@
                     const finalY = lerp(topY, botY, v);
 
                     // Three.js座標系へ
-                    pos.setXYZ( i * (segments + 1) + j, finalX - hw, -(finalY - hh), 0 );
+                    pos.setXYZ( index, finalX - hw, -(finalY - hh), 0 );
+                    
+                    // --- UV（テクスチャの貼り付け方）の計算 ---
+                    if (mappingMode === 'distort') {
+                        // 枠に合わせて映像全体を歪める
+                        uv.setXY(index, u, 1 - v);
+                    } else {
+                        // 映像は歪ませず、画面全体にある動画の「対応する位置」を切り抜く
+                        const screenU = finalX / window.innerWidth;
+                        const screenV = 1.0 - (finalY / window.innerHeight); // Y軸反転
+                        
+                        const finalU = (screenU - 0.5) / scaleX + 0.5;
+                        const finalV = (screenV - 0.5) / scaleY + 0.5;
+                        
+                        uv.setXY(index, finalU, finalV);
+                    }
                 }
             }
             pos.needsUpdate = true;
+            uv.needsUpdate = true;
             updateSVG();
         }
 
@@ -314,6 +370,7 @@
             camera.left = -window.innerWidth / 2; camera.right = window.innerWidth / 2;
             camera.top = window.innerHeight / 2; camera.bottom = -window.innerHeight / 2;
             camera.updateProjectionMatrix();
+            updateGeometry(); // リサイズ時にUVも再計算
         });
 
         // ==========================================
